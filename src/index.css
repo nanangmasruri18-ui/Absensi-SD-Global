@@ -1,0 +1,121 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  /* High quality print styles */
+  @media print {
+    @page {
+      size: landscape;
+      margin: 15mm 10mm 15mm 10mm;
+    }
+
+    body, html {
+      background: white !important;
+      color: black !important;
+      width: 100% !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      position: static !important;
+      font-size: 10pt !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    
+    #root,
+    .min-h-screen,
+    .flex,
+    .flex-1,
+    .relative,
+    main {
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      position: static !important;
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    /* Target the printable sheet container */
+    #print-sheet-area,
+    .bg-white.border.border-slate-100.rounded-2xl.p-6.shadow-sm {
+      position: static !important;
+      display: block !important;
+      width: 100% !important;
+      height: auto !important;
+      background: white !important;
+      color: black !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      box-shadow: none !important;
+      overflow: visible !important;
+    }
+
+    /* Force tables to full expansion */
+    .overflow-x-auto,
+    .overflow-y-auto {
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+      display: block !important;
+      width: 100% !important;
+    }
+
+    #monthly-printable-table, 
+    #semester-printable-table {
+      border-collapse: collapse !important;
+      width: 100% !important;
+      table-layout: auto !important;
+      height: auto !important;
+    }
+
+    #monthly-printable-table th, #monthly-printable-table td,
+    #semester-printable-table th, #semester-printable-table td {
+      border: 1px solid #718096 !important; /* solid slate gray border for high contrast printing */
+      padding: 5px 6px !important;
+      color: black !important;
+      background: transparent !important;
+      word-wrap: break-word !important;
+      font-weight: 500 !important;
+    }
+
+    #monthly-printable-table th,
+    #semester-printable-table th {
+      font-weight: 700 !important;
+      background-color: #edf2f7 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Prevent rows breaking across pages awkwardly */
+    tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+
+    /* Keep text fully opaque and dark */
+    p, span, h1, h2, h3, td, th {
+      color: #000000 !important;
+    }
+
+    /* Force background colors to show for table header labels */
+    .bg-emerald-50, .print\:bg-emerald-50 { background-color: #e6fffa !important; }
+    .bg-amber-50, .print\:bg-amber-50 { background-color: #fffaf0 !important; }
+    .bg-blue-50, .print\:bg-blue-50 { background-color: #ebf8ff !important; }
+    .bg-rose-50, .print\:bg-rose-50 { background-color: #fff5f5 !important; }
+  }
+}
+

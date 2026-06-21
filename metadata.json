@@ -1,0 +1,6 @@
+{
+  "name": "Absensi Siswa SD",
+  "description": "Sistem informasi absensi dan rekapitulasi kehadiran siswa sekolah dasar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
