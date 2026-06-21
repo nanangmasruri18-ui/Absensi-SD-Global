@@ -71,6 +71,15 @@ export default function App() {
     setSession(null);
   };
 
+  const handleDataSyncCompleted = () => {
+    setSekolah(getSekolah());
+    setKelasList(getKelasList());
+    setGuruList(getGuruList());
+    setSiswaList(getSiswaList());
+    setHariLiburList(getHariLiburList());
+    setAbsensiList(getAbsensiList());
+  };
+
   // 3. User activity tracking for security (Inactivity automatic logout)
   useEffect(() => {
     if (!session) return;
@@ -345,6 +354,7 @@ export default function App() {
                   currentDateStr={currentDateStr}
                   onNavigateToAbsensi={() => setActiveMenu('absensi')}
                   onNavigateToLibur={() => setActiveMenu('libur')}
+                  onSyncComplete={handleDataSyncCompleted}
                 />
               ) : currentGuru ? (
                 <TeacherDashboard

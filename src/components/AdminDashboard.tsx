@@ -1,6 +1,14 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { School, Users, GraduationCap, Calendar, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { School, Users, GraduationCap, Calendar, CheckCircle2, AlertCircle, Clock, Cloud, Upload, Download, RefreshCw, Copy, Check, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { Sekolah, Kelas, Guru, Siswa, Absensi } from '../types';
+import { 
+  testSupabaseConnection, 
+  pushAllLocalToSupabase, 
+  pullSupabaseToLocal, 
+  SyncStatus, 
+  SUPABASE_SETUP_SQL 
+} from '../utils/supabase';
 
 interface AdminDashboardProps {
   sekolah: Sekolah;
@@ -11,6 +19,7 @@ interface AdminDashboardProps {
   currentDateStr: string; // YYYY-MM-DD
   onNavigateToAbsensi: () => void;
   onNavigateToLibur: () => void;
+  onSyncComplete: () => void;
 }
 
 export default function AdminDashboard({
@@ -22,7 +31,66 @@ export default function AdminDashboard({
   currentDateStr,
   onNavigateToAbsensi,
   onNavigateToLibur,
+  onSyncComplete,
 }: AdminDashboardProps) {
+  
+  // Supabase states
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showSqlBlock, setShowSqlBlock] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [copiedSql, setCopiedSql] = useState(false);
+
+  useEffect(() => {
+    checkConnection();
+  }, []);
+
+  const checkConnection = async () => {
+    const status = await testSupabaseConnection();
+    setSyncStatus(status);
+  };
+
+  const handlePushToCloud = async () => {
+    setIsSyncing(true);
+    setSyncMessage('Mengirim file database sekolah ke Supabase...');
+    try {
+      await pushAllLocalToSupabase();
+      setSyncMessage('Semua data berhasil disinkronisasi ke cloud Supabase!');
+      await checkConnection();
+      setTimeout(() => setSyncMessage(''), 4000);
+    } catch (err: any) {
+      setSyncMessage(`Gagal kirim data: ${err?.message || err}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePullFromCloud = async () => {
+    setIsSyncing(true);
+    setSyncMessage('Menarik data terbaru dari cloud Supabase...');
+    try {
+      const ok = await pullSupabaseToLocal();
+      if (ok) {
+        setSyncMessage('Data berhasil ditarik dari Supabase! Menyegarkan lembar kerja...');
+        setTimeout(() => {
+          onSyncComplete();
+          setSyncMessage('');
+        }, 1500);
+      } else {
+        throw new Error('Gagal memuat beberapa tabel. Periksa relasi tabel Anda.');
+      }
+    } catch (err: any) {
+      setSyncMessage(`Gagal tarik data: ${err?.message || err}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleCopySql = () => {
+    navigator.clipboard.writeText(SUPABASE_SETUP_SQL);
+    setCopiedSql(true);
+    setTimeout(() => setCopiedSql(false), 2000);
+  };
   
   // Stats calculations
   const totalClasses = kelasList.length;
@@ -102,6 +170,137 @@ export default function AdminDashboard({
             </span>
           </div>
         </div>
+      </motion.div>
+
+      {/* Supabase Realtime Sync Dashboard Widget */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="border border-emerald-100 rounded-2xl p-5 bg-gradient-to-r from-emerald-50/20 via-slate-50 to-indigo-50/10 shadow-xs space-y-4"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+              <Cloud size={16} className="text-emerald-600 animate-pulse" />
+              Sinkronisasi Cloud Database (Supabase Web Portal)
+            </h3>
+            <p className="text-[11px] text-slate-500 mt-0.5">Automasi sinkronisasi data antar perangkat sekolah secara realtime melintasi pangkalan data.</p>
+          </div>
+          
+          <button
+            onClick={checkConnection}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold cursor-pointer pointer-events-auto transition-all"
+          >
+            <RefreshCw size={13} className={isSyncing ? "animate-spin" : ""} />
+            Segarkan Koneksi
+          </button>
+        </div>
+
+        {/* Sync Status Display Banner */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-baseline justify-between gap-4 py-2 px-3 bg-white border border-slate-200/60 rounded-xl">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-3 w-3">
+              {syncStatus?.connected ? (
+                syncStatus?.tablesExist ? (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </>
+                ) : (
+                  <>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                  </>
+                )
+              ) : (
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+              )}
+            </span>
+            <div>
+              <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                {syncStatus?.connected 
+                  ? (syncStatus?.tablesExist ? 'Supabase Terhubung & Siap Sinkron' : 'Koneksi Berhasil, Tabel Belum Terbuat') 
+                  : 'Mode Lokal (Offline / Supabase Belum Terhubung)'}
+                {syncStatus?.connected && syncStatus?.tablesExist && (
+                  <span className="bg-emerald-550 text-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase border border-emerald-100">Aktif</span>
+                )}
+              </p>
+              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                {syncStatus?.error ? `Masalah: ${syncStatus.error}` : `Waktu Sinkron Akhir: ${syncStatus?.lastSynced || 'Beralih ke lokal'}`}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!syncStatus?.tablesExist && syncStatus?.connected && (
+              <button
+                onClick={() => setShowSqlBlock(!showSqlBlock)}
+                className="bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 font-bold text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-1 cursor-pointer pointer-events-auto transition-all"
+              >
+                Setup SQL Tabel
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Sync message alert or log */}
+        {syncMessage && (
+          <div className="bg-sky-50 border border-sky-100 text-sky-800 text-xs px-3 py-2.5 rounded-xl font-medium flex items-center gap-2 animate-pulse">
+            <RefreshCw size={13} className="animate-spin text-sky-600" />
+            <span>{syncMessage}</span>
+          </div>
+        )}
+
+        {/* Sync Action Buttons */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
+          <button
+            onClick={handlePushToCloud}
+            disabled={isSyncing || !syncStatus?.connected || !syncStatus?.tablesExist}
+            className="flex items-center justify-center gap-2 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed text-emerald-800 font-bold text-xs py-3 rounded-xl cursor-pointer pointer-events-auto transition-all"
+            title="Kirim semua data lokal dari browser ini untuk disimpan di database cloud Supabase"
+          >
+            <Upload size={14} className="text-emerald-600" /> Kirim / Upload Data Lokal ke Cloud
+          </button>
+
+          <button
+            onClick={handlePullFromCloud}
+            disabled={isSyncing || !syncStatus?.connected || !syncStatus?.tablesExist}
+            className="flex items-center justify-center gap-2 border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed text-indigo-800 font-bold text-xs py-3 rounded-xl cursor-pointer pointer-events-auto transition-all"
+            title="Tarik data terbaru dari database cloud Supabase untuk menggantikan data lokal di browser ini"
+          >
+            <Download size={14} className="text-indigo-600" /> Tarik / Download Data Cloud ke Lokal
+          </button>
+        </div>
+
+        {/* Manual database script box */}
+        {showSqlBlock && (
+          <div className="border border-slate-200 rounded-xl p-4 bg-slate-900 text-slate-100 space-y-3 font-mono text-[11px] overflow-hidden">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 border-b border-slate-800 pb-2">
+              <span>SETUP SCRIPT TABEL SQL (SUPABASE EDITOR)</span>
+              <button
+                onClick={handleCopySql}
+                className="text-slate-100 hover:text-emerald-400 flex items-center gap-1 cursor-pointer pointer-events-auto font-sans text-[11px] font-bold bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-700 transition-colors"
+              >
+                {copiedSql ? (
+                  <>
+                    <Check size={12} className="text-emerald-400" /> Tersalin!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={12} /> Salin SQL Script
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-slate-400 text-[10px] font-sans italic leading-relaxed">
+              *Supabase memerlukan pembuatan skema tabel relasi agar aplikasi dapat meng-upload data. Silakan salin script SQL di atas dan tempelkan ke panel <b>SQL Editor</b> di dashboard project Supabase Anda, lalu tekan tombol <b>Run</b>. Setelah itu, tekan tombol "Segarkan Koneksi" di atas!
+            </p>
+            <pre className="bg-black/40 p-3 rounded-lg overflow-x-auto max-h-48 text-emerald-300 scrollbar-thin">
+              {SUPABASE_SETUP_SQL}
+            </pre>
+          </div>
+        )}
       </motion.div>
 
       {/* Grid of Key Stats */}
